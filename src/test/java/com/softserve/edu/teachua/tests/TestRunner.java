@@ -2,67 +2,44 @@ package com.softserve.edu.teachua.tests;
 
 import com.softserve.edu.util.DriverWrapper;
 import io.github.cdimascio.dotenv.Dotenv;
-
 import org.apache.commons.io.FileUtils;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.ExtendWith;
-
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
-
+import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
-
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Date;
 
 @ExtendWith(RunnerExtension.class)
 public abstract class TestRunner {
 
-    private static final Integer WAIT_SECONDS = 3;
+    protected static final int WAIT_SECONDS = 10;
     private static final String TIME_TEMPLATE = "yyyy-MM-dd_HH-mm-ss-S";
-    protected static boolean isTestSuccessful = false;
+    private static final Path ARTIFACTS_DIR = Path.of("screenshots");
+
+    static boolean isTestSuccessful;
+
     protected DriverWrapper driverWrapper;
 
-
-    private void takeScreenShot() {
-        LocalDateTime localDate = LocalDateTime.now();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern(TIME_TEMPLATE);
-        String currentTime = localDate.format(formatter);
-
-        File scrFile = ((TakesScreenshot) driverWrapper.getDriver()).getScreenshotAs(OutputType.FILE);
-        try {
-            FileUtils.copyFile(scrFile, new File("./" + currentTime + "_screenshot.png"));
-        } catch (IOException e) {
-            // Log.error
-            throw new RuntimeException(e);
-        }
-    }
-
-    private void takePageSource() {
-        String currentTime = new SimpleDateFormat(TIME_TEMPLATE).format(new Date());
-        String pageSource = driverWrapper.getDriver().getPageSource();
-        byte[] strToBytes = pageSource.getBytes();
-        Path path = Paths.get("./" + currentTime + "_" + "_source.html.txt");
-        try {
-            Files.write(path, strToBytes, StandardOpenOption.CREATE);
-        } catch (IOException e) {
-            // Log.error
-            throw new RuntimeException(e);
-        }
-    }
-
-
+    /**
+     * Task 1. This method is the student starting point, not the finished design.
+     * <p>
+     * {@code .env} is loaded on every test, and only Firefox is created.
+     * Read the environment once, and create Firefox, Chrome, or Edge from {@code browser}.
+     * An unknown browser name must fail with a message that includes that name.
+     */
     @BeforeEach
     public void beforeEach() {
+        isTestSuccessful = false;
         Dotenv dotenv = Dotenv.load();
         if ("firefox".equalsIgnoreCase(dotenv.get("browser"))) {
             driverWrapper = new DriverWrapper(new FirefoxDriver(), WAIT_SECONDS);
@@ -71,15 +48,43 @@ public abstract class TestRunner {
 
     @AfterEach
     public void afterEach(TestInfo testInfo) {
+        WebDriver driver = driverWrapper == null ? null : driverWrapper.getDriver();
+        if (driver == null) {
+            return;
+        }
         if (!isTestSuccessful) {
             System.out.println("\t\t\tTest_Name = " + testInfo.getDisplayName() + " fail");
             System.out.println("\t\t\tTest_Method = " + testInfo.getTestMethod() + " fail");
-
-            takeScreenShot();
-            takePageSource();
+            takeScreenShot(driver);
+            takePageSource(driver);
         }
-        driverWrapper.getDriver().manage().deleteAllCookies();
-        driverWrapper.getDriver().quit();
+        driver.manage().deleteAllCookies();
+        driver.quit();
+    }
 
+    private void takeScreenShot(WebDriver driver) {
+        String currentTime = timestamp();
+        File scrFile = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+        try {
+            Files.createDirectories(ARTIFACTS_DIR);
+            FileUtils.copyFile(scrFile, ARTIFACTS_DIR.resolve(currentTime + "_screenshot.png").toFile());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void takePageSource(WebDriver driver) {
+        String currentTime = timestamp();
+        Path path = ARTIFACTS_DIR.resolve(currentTime + "_source.html");
+        try {
+            Files.createDirectories(ARTIFACTS_DIR);
+            Files.writeString(path, driver.getPageSource());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private String timestamp() {
+        return LocalDateTime.now().format(DateTimeFormatter.ofPattern(TIME_TEMPLATE));
     }
 }

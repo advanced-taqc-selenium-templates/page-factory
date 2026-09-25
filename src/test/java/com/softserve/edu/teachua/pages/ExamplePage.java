@@ -1,18 +1,19 @@
 package com.softserve.edu.teachua.pages;
 
 import com.softserve.edu.util.DriverWrapper;
-import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.PageFactory;
 
-
-import java.time.Duration;
 import java.util.List;
 
+/**
+ * Reference page. New TeachUA pages should follow this shape:
+ * take the shared {@link DriverWrapper}, then {@link PageFactory#initElements}.
+ */
 public class ExamplePage {
 
-    private final DriverWrapper driverWr;
+    private final DriverWrapper driver;
 
     @FindBy(id = "use-custom-filtering-algorithms")
     private WebElement customFilter;
@@ -26,19 +27,19 @@ public class ExamplePage {
     @FindBy(css = "tbody tr")
     private List<WebElement> filterResult;
 
-    public ExamplePage(WebDriver driver) {
-        driverWr = new DriverWrapper(driver, 3);
-        PageFactory.initElements(driver, this);
+    public ExamplePage(DriverWrapper driver) {
+        this.driver = driver;
+        PageFactory.initElements(driver.getDriver(), this);
     }
 
     public ExamplePage customFilter() {
-        driverWr.scrollToElement(customFilter);
-        driverWr.moveToFrame(customFilterFrame);
+        driver.scrollToElement(customFilter);
+        driver.moveToFrame(customFilterFrame);
         return this;
     }
 
     public ExamplePage typeName(String text) {
-        driverWr.waitAndType(nameInput, text);
+        driver.waitAndType(nameInput, text);
         return this;
     }
 
